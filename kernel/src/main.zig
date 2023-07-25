@@ -3,6 +3,7 @@ const limine = @import("limine.zig");
 const debug = @import("debug.zig");
 const arch = @import("arch");
 const build_options = @import("build_options");
+const pmm = @import("mm/pmm.zig");
 
 const log = std.log.scoped(.core);
 
@@ -45,14 +46,20 @@ pub fn kernelLogFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumL
     }
 }
 
+fn init() void {
+    log.debug("Starting", .{});
+    defer log.debug("Start sequence done", .{});
+
+    pmm.init();
+
+    // Everything architecture-specific
+    arch.init();
+}
+
 export fn _start() callconv(.C) noreturn {
     log.info("Version {}.{}.{}", .{ build_options.version.major, build_options.version.minor, build_options.version.patch });
 
-    log.debug("Starting", .{});
-
-    arch.init();
-
-    log.debug("Start sequence done", .{});
+    init();
 
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count >= 1) {

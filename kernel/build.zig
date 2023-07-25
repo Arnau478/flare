@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) !void {
 
     const options = b.addOptions();
     options.addOption(std.SemanticVersion, "version", version);
+    options.addOption([]const u8, "pmm_impl", "bitmap_first_fit"); // TODO: Use @Type(.EnumLiteral) when the compiler allows it
 
     const kernel = b.addExecutable(.{
         .name = "kernel",
