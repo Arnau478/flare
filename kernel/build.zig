@@ -2,6 +2,13 @@ const std = @import("std");
 
 const version: std.SemanticVersion = .{ .major = 0, .minor = 1, .patch = 0 };
 
+const PmmImpl = enum {
+    bitmap_first_fit,
+    bitmap_next_fit,
+    bitmap_best_fit,
+    bitmap_worse_fit,
+};
+
 pub fn build(b: *std.Build) !void {
     const cpu_arch: std.Target.Cpu.Arch = .x86_64;
 
@@ -23,7 +30,7 @@ pub fn build(b: *std.Build) !void {
 
     const options = b.addOptions();
     options.addOption(std.SemanticVersion, "version", version);
-    options.addOption([]const u8, "pmm_impl", "bitmap_first_fit"); // TODO: Use @Type(.EnumLiteral) when the compiler allows it
+    options.addOption(PmmImpl, "pmm_impl", .bitmap_first_fit); // TODO: Use @Type(.EnumLiteral) when the compiler allows it
 
     const kernel = b.addExecutable(.{
         .name = "kernel",
