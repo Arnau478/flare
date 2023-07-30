@@ -13,7 +13,7 @@ const BlockRegion = struct {
     size: usize,
 };
 
-var bitmapSlice: []u8 = undefined;
+var bitmap_slice: []u8 = undefined;
 
 fn ptrFromBlock(block: usize) [*]u8 {
     return @ptrFromInt(block * BLOCK_SIZE);
@@ -32,24 +32,24 @@ pub fn init(mmap: generic.MemoryMap) void {
     defer log.debug("Initialization done", .{});
     log.info("Using {}-byte blocks", .{BLOCK_SIZE});
 
-    var usableSectionCount: usize = 0;
+    var usable_section_count: usize = 0;
 
     for (mmap) |section| {
         if (section.type == .usable) {
             log.debug("Usable memory section detected at {} size={}", .{ @intFromPtr(section.slice.ptr), section.slice.len });
-            usableSectionCount += 1;
+            usable_section_count += 1;
         }
     }
 
-    if (usableSectionCount == 0) log.err("No usable memory sections", .{});
+    if (usable_section_count == 0) log.err("No usable memory sections", .{});
 
-    const expandedRegions: []BlockRegion = generic.fba_allocator.alloc(BlockRegion, usableSectionCount) catch @panic("PMM FBA is full");
+    const expanded_regions: []BlockRegion = generic.fba_allocator.alloc(BlockRegion, usable_section_count) catch @panic("PMM FBA is full");
 
     {
         var i: usize = 0;
         for (mmap) |section| {
             if (section.type == .usable) {
-                expandedRegions[i] = .{
+                expanded_regions[i] = .{
                     .start = upperBlockFromPtr(section.slice.ptr),
                     .size = blockFromPtr(section.slice.ptr + section.slice.len) - upperBlockFromPtr(section.slice.ptr),
                 };
@@ -58,9 +58,9 @@ pub fn init(mmap: generic.MemoryMap) void {
         }
     }
 
-    var metaregion: BlockRegion = expandedRegions[0];
+    var metaregion: BlockRegion = expanded_regions[0];
 
-    for (expandedRegions) |region| {
+    for (expanded_regions) |region| {
         log.debug("Block region at {} of size {}", .{ region.start, region.size });
 
         if (region.start < metaregion.start) metaregion.start = region.start;
@@ -69,20 +69,20 @@ pub fn init(mmap: generic.MemoryMap) void {
 
     log.debug("Metaregion at {} of size {}", .{ metaregion.start, metaregion.size });
 
-    const bitmapSize = metaregion.size;
-    const bitmapByteSize = std.math.divCeil(usize, bitmapSize, 8) catch unreachable;
-    const bitmapBlockSize = std.math.divCeil(usize, bitmapSize, 4096) catch unreachable;
+    const bitmap_size = metaregion.size;
+    const bitmap_byte_size = std.math.divCeil(usize, bitmap_size, 8) catch unreachable;
+    const bitmap_block_size = std.math.divCeil(usize, bitmap_size, 4096) catch unreachable;
 
-    log.debug("{} bytes ({} blocks) will be used for the bitmap", .{ bitmapByteSize, bitmapBlockSize });
+    log.debug("{} bytes ({} blocks) will be used for the bitmap", .{ bitmap_byte_size, bitmap_block_size });
 
-    var bitmapRegion: BlockRegion = undefined;
+    var bitmap_region: BlockRegion = undefined;
 
     blk: {
-        for (expandedRegions) |region| {
-            if (region.size >= bitmapBlockSize) {
-                bitmapRegion = .{
+        for (expanded_regions) |region| {
+            if (region.size >= bitmap_block_size) {
+                bitmap_region = .{
                     .start = region.start,
-                    .size = bitmapBlockSize,
+                    .size = bitmap_block_size,
                 };
                 break :blk;
             }
@@ -92,13 +92,13 @@ pub fn init(mmap: generic.MemoryMap) void {
         unreachable;
     }
 
-    bitmapSlice = ptrFromBlock(bitmapRegion.start)[0 .. bitmapRegion.size * BLOCK_SIZE];
+    bitmap_slice = ptrFromBlock(bitmap_region.start)[0 .. bitmap_region.size * BLOCK_SIZE];
 
     // 1. Mark everything used
-    @memset(bitmapSlice, 0xFF);
+    @memset(bitmap_slice, 0xFF);
 
     // 2. Unmark all regions
-    for (expandedRegions) |region| {
+    for (expanded_regions) |region| {
         // TODO: Should use @memset for the byte-aligned ones and then bitmapSetBlock() for the few ones that aren't
         for (region.start..region.start + region.size) |i| {
             bitmapSetBlock(i, false);
@@ -106,7 +106,7 @@ pub fn init(mmap: generic.MemoryMap) void {
     }
 
     // 3. Remark the bitmap region
-    for (bitmapRegion.start..bitmapRegion.start + bitmapRegion.size) |i| {
+    for (bitmap_region.start..bitmap_region.start + bitmap_region.size) |i| {
         bitmapSetBlock(i, true);
     }
 
@@ -115,20 +115,20 @@ pub fn init(mmap: generic.MemoryMap) void {
 
 inline fn bitmapSetBlock(index: usize, is_used: bool) void {
     if (is_used) {
-        bitmapSlice[index / 8] |= @as(u8, 1) << @truncate(index % 8);
+        bitmap_slice[index / 8] |= @as(u8, 1) << @truncate(index % 8);
     } else {
-        bitmapSlice[index / 8] &= ~(@as(u8, 1) << @truncate(index % 8));
+        bitmap_slice[index / 8] &= ~(@as(u8, 1) << @truncate(index % 8));
     }
 }
 
 inline fn bitmapGetBlock(index: usize) bool {
-    return bitmapSlice[index / 8] & (@as(u8, 1) << @truncate(index % 8)) > 0;
+    return bitmap_slice[index / 8] & (@as(u8, 1) << @truncate(index % 8)) > 0;
 }
 
 // TODO: This is slow. Maybe using some comptime-generated switch that goes byte by byte? (eg 0x6C => 4)
 fn getFreeBlocks() usize {
     var count: usize = 0;
-    for (0..bitmapSlice.len * 8) |i| {
+    for (0..bitmap_slice.len * 8) |i| {
         if (!bitmapGetBlock(i)) count += 1;
     }
     return count;
@@ -138,7 +138,7 @@ fn alloc(bytes: usize) ![]u8 {
     if (bytes % BLOCK_SIZE != 0) log.warn("Allocation size is not block-aligned, rounding up", .{});
     const blocks_to_alloc = std.math.divCeil(usize, bytes, BLOCK_SIZE) catch unreachable;
     var count: usize = 0;
-    const start: usize = for (0..bitmapSlice.len * 8) |i| {
+    const start: usize = for (0..bitmap_slice.len * 8) |i| {
         count += 1;
         if (bitmapGetBlock(i)) count = 0;
 
