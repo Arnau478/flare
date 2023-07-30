@@ -9,10 +9,6 @@ const log = std.log.scoped(.core);
 
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
-inline fn hlt() noreturn {
-    while (true) asm volatile ("hlt");
-}
-
 pub const std_options = struct {
     pub const log_level = .debug; // TODO: Decide this based on build config
     pub const logFn = kernelLogFn;
@@ -25,7 +21,7 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_
 
     // TODO: Print trace if available
 
-    hlt();
+    arch.cpu.halt();
 }
 
 pub fn kernelLogFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime fmt: []const u8, args: anytype) void {
@@ -76,5 +72,5 @@ export fn _start() callconv(.C) noreturn {
         log.warn("No response to framebuffer request", .{});
     }
 
-    hlt();
+    arch.cpu.halt();
 }
