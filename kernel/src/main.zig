@@ -19,8 +19,6 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_
     _ = ret_addr;
     log.err("PANIC: {s}", .{msg});
 
-    // TODO: Print trace if available
-
     arch.cpu.halt();
 }
 
