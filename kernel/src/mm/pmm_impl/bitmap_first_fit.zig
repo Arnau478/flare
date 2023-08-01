@@ -134,7 +134,7 @@ fn getFreeBlocks() usize {
     return count;
 }
 
-fn alloc(bytes: usize) ![]u8 {
+pub fn alloc(bytes: usize) ![]u8 {
     if (bytes % BLOCK_SIZE != 0) log.warn("Allocation size is not block-aligned, rounding up", .{});
     const blocks_to_alloc = std.math.divCeil(usize, bytes, BLOCK_SIZE) catch unreachable;
     var count: usize = 0;
@@ -154,7 +154,7 @@ fn alloc(bytes: usize) ![]u8 {
     return @as([*]u8, @ptrFromInt(start * BLOCK_SIZE))[0 .. count * BLOCK_SIZE];
 }
 
-fn free(slice: []u8) void {
+pub fn free(slice: []u8) void {
     for (blockFromPtr(slice.ptr)..upperBlockFromPtr(slice.ptr + slice.len)) |i| {
         if (!bitmapGetBlock(i)) log.warn("Block {} is being freed but was not used", .{i});
         bitmapSetBlock(i, false);
