@@ -4,6 +4,7 @@ const debug = @import("debug.zig");
 const arch = @import("arch");
 const build_options = @import("build_options");
 const pmm = @import("mm/pmm.zig");
+const heap = @import("libk/heap.zig");
 
 const log = std.log.scoped(.core);
 
