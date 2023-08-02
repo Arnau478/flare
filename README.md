@@ -1,13 +1,21 @@
-Flare
+# Flare
+A kernel (and OS) written in zig.
 
-# Roadmap
+## Milestones
 - [x] Bare bones
+- [x] GDT
 - [x] IDT
 - [x] PMM
 - [ ] VMM
 - [ ] Paging
-- [ ] VFS
-- [ ] FS-based HAL
+- [x] Heap allocator
+- [x] VFS
+- [x] InitRD
+- [x] DevFS
+- [x] Framebuffer
+- [ ] Syscalls
+- [ ] ELF parsing
+- [ ] Userspace
 - [ ] ACPI
 - [ ] FPU
 - [ ] APIC
@@ -17,5 +25,3 @@ Flare
 - [ ] APIC timer
 - [ ] SMP
 - [ ] Multitasking
-- [ ] Syscalls
-- [ ] Userspace
