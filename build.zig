@@ -76,9 +76,14 @@ pub fn build(b: *std.Build) !void {
     const limine_step = b.step("limine", "Download and build limine bootloader");
     limine_step.dependOn(&limine_cmd.step);
 
+    const initrd_cmd = b.addSystemCommand(&.{ "python3", "scripts/initrfs_util.py", "create", "zig-cache/initrd", "base" });
+    const initrd_step = b.step("initrd", "Build the initial ramdisk");
+    initrd_step.dependOn(&initrd_cmd.step);
+
     const iso_cmd = b.addSystemCommand(&.{ "bash", "scripts/iso.sh" });
     iso_cmd.step.dependOn(limine_step);
     iso_cmd.step.dependOn(kernel_step);
+    iso_cmd.step.dependOn(initrd_step);
     const iso_step = b.step("iso", "Build an iso file");
     iso_step.dependOn(&iso_cmd.step);
 

@@ -5,9 +5,15 @@ const arch = @import("arch");
 const build_options = @import("build_options");
 const pmm = @import("mm/pmm.zig");
 const heap = @import("libk/heap.zig");
+const vfs = @import("fs/vfs.zig");
+const initrd = @import("fs/initrd.zig");
 
 const log = std.log.scoped(.core);
 
+var heap_allocator = heap.HeapAllocator.init();
+const allocator = heap_allocator.allocator();
+
+pub export var module_request: limine.ModuleRequest = .{};
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub const std_options = struct {
@@ -41,11 +47,27 @@ pub fn kernelLogFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumL
     }
 }
 
+pub fn getInitrdData() []u8 {
+    if (module_request.response) |module_response| {
+        for (module_response.modules()) |module| {
+            if (std.mem.eql(u8, std.mem.span(module.path), "/initrd")) {
+                return module.data();
+            }
+        }
+    }
+
+    log.err("No initrd module", .{});
+    unreachable;
+}
+
 fn init() void {
     log.debug("Starting", .{});
     defer log.debug("Start sequence done", .{});
 
     pmm.init();
+
+    vfs.init();
+    initrd.init(getInitrdData());
 
     // Everything architecture-specific
     arch.init();
@@ -55,6 +77,10 @@ export fn _start() callconv(.C) noreturn {
     log.info("Version {}.{}.{}", .{ build_options.version.major, build_options.version.minor, build_options.version.patch });
 
     init();
+
+    printMotd();
+
+    fs_tree();
 
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count >= 1) {
@@ -72,4 +98,34 @@ export fn _start() callconv(.C) noreturn {
     }
 
     arch.cpu.halt();
+}
+
+fn fs_tree() void {
+    fs_tree_node(vfs.root, 0) catch |e| {
+        log.err("{}", .{e});
+    };
+}
+
+fn fs_tree_node(node: *vfs.Node, depth: usize) !void {
+    const tab = 4;
+    const padding = allocator.alloc(u8, depth * tab) catch @panic("OOM");
+    defer allocator.free(padding);
+
+    @memset(padding, ' ');
+
+    log.debug("{s}{s}", .{ padding, node.name });
+    if (node.real().flags.type == .directory) {
+        for (0..node.real().length) |i| try fs_tree_node(try vfs.readDir(node.real(), i), depth + 1);
+    }
+}
+
+fn printMotd() void {
+    const node = (vfs.findDir(vfs.findDir(vfs.root.real(), "etc") catch unreachable, "motd") catch unreachable).real();
+
+    var buffer = allocator.alloc(u8, node.real().length) catch @panic("OOM");
+    defer allocator.free(buffer);
+
+    const read_len = vfs.read(node, 0, buffer) catch unreachable;
+
+    log.debug("{s}", .{buffer[0..read_len]});
 }

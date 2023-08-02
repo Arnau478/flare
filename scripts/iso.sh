@@ -1,6 +1,7 @@
 rm -rf zig-cache/iso_root
 mkdir -p zig-cache/iso_root
 cp -v zig-out/bin/kernel zig-cache/iso_root/kernel.elf
+cp -v zig-cache/initrd zig-cache/iso_root/initrd
 cp -v limine.cfg zig-cache/limine/limine-bios.sys zig-cache/limine/limine-bios-cd.bin zig-cache/limine/limine-uefi-cd.bin zig-cache/iso_root
 mkdir -p zig-cache/iso_root/EFI/BOOT
 cp -v zig-cache/limine/BOOTX64.EFI zig-cache/iso_root/EFI/BOOT
