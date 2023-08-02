@@ -41,7 +41,7 @@ var idtd: Idtd = undefined;
 fn setEntry(index: u8, comptime isr: Isr, gate_type: GateType) void {
     idt[index] = .{
         .isr_address_low = @truncate(@intFromPtr(&isr)),
-        .kernel_cs = 0x08,
+        .kernel_cs = 0x28,
         .ist = 0,
         .gate_type = gate_type,
         .dpl = 0,

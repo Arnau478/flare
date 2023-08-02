@@ -6,6 +6,7 @@ pub const io = @import("io.zig");
 pub const cpu = @import("cpu.zig");
 pub const gdt = @import("gdt.zig");
 pub const idt = @import("idt.zig");
+pub const syscall = @import("syscall.zig");
 
 pub fn init() void {
     log.debug("Architecture-specific initialization started", .{});
@@ -13,4 +14,5 @@ pub fn init() void {
 
     gdt.init();
     idt.init();
+    syscall.init();
 }

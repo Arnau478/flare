@@ -83,9 +83,7 @@ export fn _start() callconv(.C) noreturn {
     init();
 
     printMotd();
-
     drawFb();
-
     fsTree();
 
     arch.cpu.halt();

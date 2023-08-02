@@ -7,6 +7,7 @@ const Gdtd = packed struct {
     size: u16,
     offset: u64,
 };
+
 const EntryAccess = packed struct {
     accessed: bool = false,
     read_write: bool,
@@ -19,6 +20,7 @@ const EntryAccess = packed struct {
     dpl: cpu.Ring,
     present: bool,
 };
+
 const EntryFlags = packed struct {
     rsv: u1 = undefined,
     long_code: bool,
@@ -47,65 +49,17 @@ const Entry = packed struct {
 };
 
 var gdt = [_]Entry{
-    // Null
-    Entry.make(0, 0, @bitCast(@as(u8, 0)), @bitCast(@as(u4, 0))),
-
-    // Kernel code
-    Entry.make(0, 0xFFFFF, .{
-        .read_write = true,
-        .direction_conforming = false,
-        .executable = true,
-        .type = .normal,
-        .dpl = 0,
-        .present = true,
-    }, .{
-        .long_code = true,
-        .size = false,
-        .granularity = true,
-    }),
-
-    // Kernel data
-    Entry.make(0, 0xFFFFF, .{
-        .read_write = true,
-        .direction_conforming = false,
-        .executable = false,
-        .type = .normal,
-        .dpl = 0,
-        .present = true,
-    }, .{
-        .long_code = true,
-        .size = false,
-        .granularity = true,
-    }),
-
-    // User code
-    Entry.make(0, 0xFFFFF, .{
-        .read_write = true,
-        .direction_conforming = false,
-        .executable = true,
-        .type = .normal,
-        .dpl = 3,
-        .present = true,
-    }, .{
-        .long_code = true,
-        .size = false,
-        .granularity = true,
-    }),
-
-    // User data
-    Entry.make(0, 0xFFFFF, .{
-        .read_write = true,
-        .direction_conforming = false,
-        .executable = false,
-        .type = .normal,
-        .dpl = 3,
-        .present = true,
-    }, .{
-        .long_code = true,
-        .size = false,
-        .granularity = true,
-    }),
+    @bitCast(@as(u64, 0x0000000000000000)), // 0x00: NULL
+    @bitCast(@as(u64, 0x00009a000000ffff)), // 0x08: LIMINE 16-BIT KCODE
+    @bitCast(@as(u64, 0x000092000000ffff)), // 0x10: LIMINE 16-BIT KDATA
+    @bitCast(@as(u64, 0x00cf9a000000ffff)), // 0x18: LIMINE 32-BIT KCODE
+    @bitCast(@as(u64, 0x00cf92000000ffff)), // 0x20: LIMINE 32-BIT KDATA
+    @bitCast(@as(u64, 0x00209A0000000000)), // 0x28: 64-BIT KCODE
+    @bitCast(@as(u64, 0x0000920000000000)), // 0x30: 64-BIT KDATA
+    @bitCast(@as(u64, 0x0000F20000000000)), // 0x3B: 64-BIT UDATA
+    @bitCast(@as(u64, 0x0020FA0000000000)), // 0x43: 64-BIT UCODE
 };
+
 var gdtd: Gdtd = undefined;
 
 pub fn init() void {
@@ -126,4 +80,6 @@ fn lgdt(desc: *const Gdtd) void {
         :
         : [desc] "{rax}" (desc),
     );
+
+    // We don't need to reload the segments, as they are an extension of limine's
 }
