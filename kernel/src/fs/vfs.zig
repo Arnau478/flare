@@ -42,18 +42,18 @@ pub const Node = struct {
     }
 };
 
-pub const ReadFn = fn (node: *Node, offset: u64, buffer: []u8) anyerror!usize;
-pub const WriteFn = fn (node: *Node, offset: u64, buffer: []const u8) anyerror!usize;
+pub const ReadFn = fn (node: *Node, offset: usize, buffer: []u8) anyerror!usize;
+pub const WriteFn = fn (node: *Node, offset: usize, buffer: []const u8) anyerror!usize;
 pub const OpenFn = fn (node: *Node) anyerror!void;
 pub const CloseFn = fn (node: *Node) anyerror!void;
 pub const ReadDirFn = fn (node: *Node, index: usize) anyerror!*Node;
 pub const FindDirFn = fn (node: *Node, name: []const u8) anyerror!*Node;
 
-pub fn read(node: *Node, offset: u64, buffer: []u8) !usize {
+pub fn read(node: *Node, offset: usize, buffer: []u8) !usize {
     return (node.real().read orelse return error.Uninmplemented)(node.real(), offset, buffer);
 }
 
-pub fn write(node: *Node, offset: u64, buffer: []const u8) !usize {
+pub fn write(node: *Node, offset: usize, buffer: []const u8) !usize {
     return (node.real().write orelse return error.Uninmplemented)(node.real(), offset, buffer);
 }
 
@@ -82,7 +82,16 @@ pub fn mount(path: []const u8, node: *Node) !void {
         root.flags.mountpoint = true;
         root.ptr = node;
     } else {
-        return error.Unimplemented;
+        var iter = std.mem.tokenizeScalar(u8, path, '/');
+        var found_node = root.real();
+        while (iter.next()) |section| {
+            found_node = try findDir(found_node.real(), section);
+        }
+
+        if (found_node.flags.type != .directory) return error.NotADirectory;
+
+        found_node.flags.mountpoint = true;
+        found_node.ptr = node;
     }
 }
 

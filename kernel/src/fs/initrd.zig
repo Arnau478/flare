@@ -159,7 +159,7 @@ pub fn init(module_data: []const u8) void {
     };
 }
 
-fn read(node: *vfs.Node, offset: u64, buffer: []u8) !usize {
+fn read(node: *vfs.Node, offset: usize, buffer: []u8) !usize {
     if (offset > node.real().length) return error.OutOfBounds;
     var size = buffer.len;
     if (offset + buffer.len > node.real().length) size = node.real().length - offset;

@@ -26,8 +26,14 @@ def create(file_name, dir_name):
         out_fd.write(bytes([len(name)])) # name length
         out_fd.write(name.encode("ascii")) # name
         child_nodes = os.listdir(path)
-        out_fd.write(bytes([len(child_nodes)])) # child count
+        child_count = len(child_nodes)
         for child in child_nodes:
+            if child == "...":
+                child_count -= 1
+                break
+        out_fd.write(bytes([child_count])) # child count
+        for child in child_nodes:
+            if child == "...": continue
             if(os.path.isdir(os.path.join(path, child))):
                 create_directory(child, os.path.join(path, child))
             else:

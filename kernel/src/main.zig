@@ -7,6 +7,8 @@ const pmm = @import("mm/pmm.zig");
 const heap = @import("libk/heap.zig");
 const vfs = @import("fs/vfs.zig");
 const initrd = @import("fs/initrd.zig");
+const devfs = @import("fs/devfs.zig");
+const framebuffer = @import("dev/framebuffer.zig");
 
 const log = std.log.scoped(.core);
 
@@ -14,7 +16,6 @@ var heap_allocator = heap.HeapAllocator.init();
 const allocator = heap_allocator.allocator();
 
 pub export var module_request: limine.ModuleRequest = .{};
-pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub const std_options = struct {
     pub const log_level = .debug; // TODO: Decide this based on build config
@@ -68,9 +69,12 @@ fn init() void {
 
     vfs.init();
     initrd.init(getInitrdData());
+    devfs.init();
 
     // Everything architecture-specific
     arch.init();
+
+    framebuffer.init();
 }
 
 export fn _start() callconv(.C) noreturn {
@@ -80,33 +84,20 @@ export fn _start() callconv(.C) noreturn {
 
     printMotd();
 
-    fs_tree();
+    drawFb();
 
-    if (framebuffer_request.response) |framebuffer_response| {
-        if (framebuffer_response.framebuffer_count >= 1) {
-            const framebuffer = framebuffer_response.framebuffers()[0];
-
-            for (0..100) |i| {
-                const pixel_offset = i * framebuffer.pitch + i * 4;
-                @as(*u32, @ptrCast(@alignCast(framebuffer.address + pixel_offset))).* = 0xFFFFFFFF;
-            }
-        } else {
-            log.warn("No framebuffer available", .{});
-        }
-    } else {
-        log.warn("No response to framebuffer request", .{});
-    }
+    fsTree();
 
     arch.cpu.halt();
 }
 
-fn fs_tree() void {
-    fs_tree_node(vfs.root, 0) catch |e| {
+fn fsTree() void {
+    fsTreeNode(vfs.root, 0) catch |e| {
         log.err("{}", .{e});
     };
 }
 
-fn fs_tree_node(node: *vfs.Node, depth: usize) !void {
+fn fsTreeNode(node: *vfs.Node, depth: usize) !void {
     const tab = 4;
     const padding = allocator.alloc(u8, depth * tab) catch @panic("OOM");
     defer allocator.free(padding);
@@ -115,7 +106,7 @@ fn fs_tree_node(node: *vfs.Node, depth: usize) !void {
 
     log.debug("{s}{s}", .{ padding, node.name });
     if (node.real().flags.type == .directory) {
-        for (0..node.real().length) |i| try fs_tree_node(try vfs.readDir(node.real(), i), depth + 1);
+        for (0..node.real().length) |i| try fsTreeNode(try vfs.readDir(node.real(), i), depth + 1);
     }
 }
 
@@ -128,4 +119,12 @@ fn printMotd() void {
     const read_len = vfs.read(node, 0, buffer) catch unreachable;
 
     log.debug("{s}", .{buffer[0..read_len]});
+}
+
+fn drawFb() void {
+    const node = (vfs.findDir(vfs.findDir(vfs.root.real(), "dev") catch unreachable, "fb0") catch unreachable).real();
+    const buffer: []const u8 = &.{0x11};
+    for (0..node.real().length) |i| {
+        _ = vfs.write(node, i, buffer) catch {};
+    }
 }
