@@ -70,7 +70,7 @@ pub fn build(b: *std.Build) !void {
     kernel.pie = true;
 
     const kernel_step = b.step("kernel", "Build the kernel");
-    kernel_step.dependOn(&b.addInstallArtifact(kernel).step);
+    kernel_step.dependOn(&b.addInstallArtifact(kernel, .{}).step);
 
     const limine_cmd = b.addSystemCommand(&.{ "bash", "scripts/limine.sh" });
     const limine_step = b.step("limine", "Download and build limine bootloader");
